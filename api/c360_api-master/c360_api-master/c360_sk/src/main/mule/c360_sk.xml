@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="94db52da-8570-4f49-a0fd-2224bf2eac08" >
+		<http:listener-connection host="0.0.0.0" port="8083" />
+	</http:listener-config>
+	<flow name="saoke" doc:id="0b709f11-a5ac-4b58-869b-0e15d6ac150a" >
+		<http:listener doc:name="Listener" doc:id="a8ea0482-66da-4b57-aed3-8f48710109ba" config-ref="HTTP_Listener_config" path="/api/accountStatement"/>
+		<logger level="INFO" doc:name="Logger" doc:id="e456db6f-009c-4e4a-86be-c8f38419556f" message="#[payload]"/>
+		<java:new constructor="CorpStatementRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="6cfe8191-cd82-4dd7-b596-aa39b0676dfb" class="dao.request.CorpStatementRequest" target="request">
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	account : payload.account,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate,
+	accStatementType : payload.accStatementType
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static doc:name="Invoke static" doc:id="f7283f85-0123-46b3-9063-6c4dddb7b640" class="service.CorpStatementService" method="getStatement(dao.request.CorpStatementRequest)">
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="a1e5b407-6ee0-464d-b36b-0d909229698f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="saoke_uat" doc:id="e8b42e5a-946a-40b4-88d1-e148ed25cd1f" >
+		<http:listener doc:name="Listener" doc:id="5759db1a-122e-403b-b0d5-e9863dba6634" config-ref="HTTP_Listener_config" path="/api/accountStatementUat" />
+		<logger level="INFO" doc:name="Logger" doc:id="34545b6d-9507-4bed-9976-648723815f97" message="#[payload]" />
+		<java:new constructor="CorpStatementRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="cb71d799-bbfe-48bb-af3f-220913f260d8" class="dao.request.CorpStatementRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	account : payload.account,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate,
+	accStatementType : payload.accStatementType
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getStatementUat(dao.request.CorpStatementRequest)" doc:name="Invoke static" doc:id="c4ee3620-45df-4739-b1bb-814ac96e824f" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="6b456ad9-1989-4e77-b484-cad6fb978657" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="state_bank" doc:id="45e2e70e-4f22-417e-bfc5-0db337a6355f" >
+		<http:listener doc:name="Listener" doc:id="46e11afd-e122-4891-ab98-d3f22974ead6" config-ref="HTTP_Listener_config" path="/api/stateBudget" />
+		<logger level="INFO" doc:name="Logger" doc:id="5d877ed6-c5b9-42f9-bb6a-fabbed507d94" message="#[payload]" />
+		<java:new constructor="StateBudgetRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="345843bd-6fe4-4c8d-be4c-62ae4e9eda24" class="dao.request.StateBudgetRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	refNo : payload.refNo,
+	taxTyp : payload.taxTyp,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getStateBudget(dao.request.StateBudgetRequest)" doc:name="Invoke static" doc:id="ef712983-8aa4-447f-a1d6-e2b20ea5ac89" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="fb729c58-788e-4ea3-9838-5e7373ea9455" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="state_bankuat" doc:id="71fd0c89-348a-4dfd-9bcf-ac379a56e1d0" >
+		<http:listener doc:name="Listener" doc:id="b336addf-60e6-4c2b-a6d9-6b6405054c39" config-ref="HTTP_Listener_config" path="/api/stateBudgetUat" />
+		<logger level="INFO" doc:name="Logger" doc:id="403f3a76-b3a6-4d39-8779-c0e5d2873406" message="#[payload]" />
+		<java:new constructor="StateBudgetRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="291dfdfc-4758-4005-a7f5-384d21b7523b" class="dao.request.StateBudgetRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	refNo : payload.refNo,
+	taxTyp : payload.taxTyp,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getStateBudgetUat(dao.request.StateBudgetRequest)" doc:name="Invoke static" doc:id="87365503-9d52-4f20-ae63-439d053bbf4b" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="38832299-57cc-4c97-868e-f5fc9e448928" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+
+</mule>

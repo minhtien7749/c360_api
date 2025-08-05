@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="9bae1156-8a99-4465-928b-bb7427d5634c" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="fac3459d-47d3-491e-8106-44dd707f68c7" >
+		<db:my-sql-connection host="10.6.145.194" port="9030" user="admin" database="ipay"/>
+	</db:config>
+	<ee:object-store-caching-strategy name="Caching_Strategy" doc:name="Caching Strategy" doc:id="5722c035-7d0a-4560-a98a-18953c4ca775" />
+	<flow name="statisticOverview" doc:id="d9854e0f-90ad-4c6c-b103-a32f4fa5d054" >
+		<http:listener doc:name="Listener" doc:id="87751717-717c-4da8-a5b8-60f49f5a735a" config-ref="HTTP_Listener_config" path="/api/ipay/getStatisticOverview"/>
+		<logger level="INFO" doc:name="Logger" doc:id="8e1491fa-e338-4d28-b7cc-004857eac1e2" message="#[payload]"/>
+		<java:new constructor="PfmStatisticOverviewRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="78aee327-5ebf-4f22-80b8-f03fbc4b2da1" class="dao.request.PfmStatisticOverviewRequest" target="request">
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	periodFrom : payload.periodFrom,
+	periodTo : payload.periodTo,
+	periodType : payload.periodType
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static doc:name="Invoke static" doc:id="7f4675ee-12b0-47c8-bb21-3eeef46bfc24" class="service.IpayService" method="getStatisticOverview(dao.request.PfmStatisticOverviewRequest)">
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="fba6f38f-db86-4b2a-a6d7-2114eb3edc54" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="d0e0a6a2-e958-423f-879f-f986ce12bd28" message="#[payload]" />
+	</flow>
+	<flow name="statisticDetail" doc:id="6bb837ed-6b0b-48f5-8132-857626112acf" >
+		<http:listener doc:name="Listener" doc:id="2d4ce009-ce74-4816-b3c7-bb8fc7c5b72c" config-ref="HTTP_Listener_config" path="/api/ipay/getStatisticDetail" />
+		<logger level="INFO" doc:name="Logger" doc:id="00a7913d-abbb-40f9-a1bf-04987128b86d" message="#[payload]" />
+		<java:new constructor="PfmStatisticDetailRequest(java.lang.String,java.lang.String,java.lang.String,java.util.ArrayList,java.util.ArrayList,java.util.ArrayList,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="c7ebfe76-2d83-4927-9f01-df13d5c23bfb" class="dao.request.PfmStatisticDetailRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	accountList : payload.accountList,
+	cardList : payload.cardList,
+	categoryList : payload.categoryList,
+	periodFrom : payload.periodFrom,
+	periodTo : payload.periodTo,
+	groupBy : payload.groupBy,
+	lang : payload.lang
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getStatisticDetail(dao.request.PfmStatisticDetailRequest)" doc:name="Invoke static" doc:id="fc5f80a5-5d76-4724-897e-182c05413903" class="service.IpayService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="db8452dc-e0f9-489b-a684-dd2fe45e6723" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="65a18524-2801-49d7-98ea-1d6090e1a3cd" message="#[payload]" />
+	</flow>
+	<flow name="getCard" doc:id="f8d6e90b-faea-42f5-a55e-c987eb69110b" >
+		<http:listener doc:name="Listener" doc:id="dabaa1fa-cc59-49ce-b12d-4c1ae44c143a" config-ref="HTTP_Listener_config" path="/api/ipay/getCardTransaction" />
+		<logger level="INFO" doc:name="Logger" doc:id="81efd076-fe78-4982-beca-16350f27b58e" message="#[payload]" />
+		<java:new doc:name="New" doc:id="8b619d58-0c52-4407-a3ca-ee9c10c4adb0" class="dao.request.PfmGetTransRequest" target="request" constructor="PfmGetTransRequest(java.lang.String,java.lang.String,java.lang.String,java.util.ArrayList,java.util.ArrayList,java.util.ArrayList,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer,java.lang.String)">
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	accountList : payload.accountList,
+	cardList : payload.cardList,
+	categoryList : payload.categoryList,
+	periodFrom : payload.periodFrom,
+	periodTo : payload.periodTo,
+	periodType : payload.periodType,
+	groupBy : payload.groupBy,
+	pageSize : payload.pageSize,
+	pageNum : payload.pageNum,
+	lang : payload.lang
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getCardTranbyCat(dao.request.PfmGetTransRequest)" doc:name="Invoke static" doc:id="e5a95e3d-815d-4eb4-99fb-b7f4a7f13b04" class="service.IpayService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="414db627-99ab-4779-ad4e-48757494c711" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="5bdad679-3164-4762-ab31-8f116e64b7d6" message="#[payload]" />
+	</flow>
+	<flow name="getDDA" doc:id="20b87e8e-1440-412b-9083-d73d43e5adb2">
+		<http:listener doc:name="Listener" doc:id="c3ed0d3d-49eb-4e61-80c6-e99611b99b91" config-ref="HTTP_Listener_config" path="/api/ipay/getDdaTransaction" />
+		<logger level="INFO" doc:name="Logger" doc:id="2511832e-2412-4aa8-93f1-d9576908019c" message="#[payload]" />
+		<java:new constructor="PfmGetTransRequest(java.lang.String,java.lang.String,java.lang.String,java.util.ArrayList,java.util.ArrayList,java.util.ArrayList,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer,java.lang.String)" doc:name="New" doc:id="beb4cb37-128c-492c-b58a-8c0b9d357858" class="dao.request.PfmGetTransRequest" target="request">
+			<java:args><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	accountList : payload.accountList,
+	cardList : payload.cardList,
+	categoryList : payload.categoryList,
+	periodFrom : payload.periodFrom,
+	periodTo : payload.periodTo,
+	periodType : payload.periodType,
+	groupBy : payload.groupBy,
+	pageSize : payload.pageSize,
+	pageNum : payload.pageNum,
+	lang : payload.lang
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getDdaTransByCat(dao.request.PfmGetTransRequest)" doc:name="Invoke static" doc:id="de1c681e-e421-4c86-a18d-a81987f35475" class="service.IpayService">
+			<java:args><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="d12c0d63-d511-4401-8ab4-154da55a26cb">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="0fc5a4ab-91fb-4da2-8aab-8d9b16214a1a" message="#[payload]" />
+	</flow>
+	<flow name="UpdateCategory" doc:id="0bc9a12d-a517-4211-b3a5-8dab3feeb8b3" >
+		<http:listener doc:name="Listener" doc:id="69865c43-8537-4b7a-989b-901f2d11ce92" config-ref="HTTP_Listener_config" path="/api/ipay/updateCategory" allowedMethods="POST" />
+		<logger level="INFO" doc:name="Logger" doc:id="b18717e6-f2f5-4e55-9b2f-eb94a09a1a72" message="#[payload]"/>
+		<choice doc:name="Choice" doc:id="23749300-3b49-4547-bec2-0fc3a60ab057" >
+			<when expression='#[payload.data.accountNo[0] == ""]' >
+				<db:bulk-insert doc:name="Bulk insert" doc:id="e12b0e56-a3c3-46a5-8018-03884770b02b" config-ref="Database_Config">
+					<db:bulk-input-parameters ><![CDATA[#[payload.data]]]></db:bulk-input-parameters>
+					<db:sql ><![CDATA[INSERT INTO ipay.ipay_virtual_transaction (pid, cob_dt,lastupdated,account_number,tseq,customer_number,hostrefno,remark,mapping_id,category_id,parent_pid,amount,channel,version) 
+VALUES (:pid, :executionDate, :lastUpdated, :accountNo, :tSeq, :customerNumber, :hostRefNo, :remark, :mappingId, :categoryId, :parentPid, :amt, :channel, :version )]]></db:sql>
+				</db:bulk-insert>
+				<ee:transform doc:name="Transform Message" doc:id="46c855b3-3376-48ad-bf26-1aaa64383fe9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "data": null,
+    "errorCode": 0,
+    "message": "Success",
+    "statusCode": 200
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<db:bulk-insert doc:id="0738cdae-84e5-453f-a983-b5d7b3077425" config-ref="Database_Config" doc:name="Bulk insert" >
+					<db:bulk-input-parameters ><![CDATA[#[payload.data]]]></db:bulk-input-parameters>
+					<db:sql ><![CDATA[INSERT INTO ipay.ib_pfm_transaction_category_realtime (pid,execution_date,lastupdated,account_number,tseq,customer_number,hostrefno,mapping_id,remark,category_id,parent_pid,amount,channel,version) 
+VALUES (:pid,:executionDate, :lastUpdated, :accountNo, :tSeq, :customerNumber, :hostRefNo, :mappingId,:remark, :categoryId, :parentPid, :amt, :channel, :version )]]></db:sql>
+				</db:bulk-insert>
+				<ee:transform doc:name="Transform Message1" doc:id="e50d2727-7aab-4a93-aff6-0de5c03fed9a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "data": null,
+    "errorCode": 0,
+    "message": "Success",
+    "statusCode": 200
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger1" doc:id="a13b6032-45bb-4eca-a738-4ae01cb27630" message="#[payload]" />
+	</flow>
+	<flow name="getTranCat" doc:id="25d4824c-f174-435b-94f8-790eb171fc35" >
+		<http:listener doc:name="Listener" doc:id="bcf9e154-e8f7-49f6-bd69-9930944c4c11" config-ref="HTTP_Listener_config" path="/api/ipay/getTransactionCat" />
+		<logger level="INFO" doc:name="Logger" doc:id="c62dc358-bfca-42ec-9b60-52a69c5152c7" message="#[payload]" />
+		<java:new constructor="PfmGetTranCatRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="dc516ed6-504c-4bc7-9a4e-7e49b6cc3afa" class="dao.request.PfmGetTranCatRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	executionDate : payload.executionDate,
+	accountNo : payload.accountNo,
+	tSeq : payload.tSeq,
+	hostRefNo : payload.hostRefNo,
+	transactionRef : payload.transactionRef,
+	lang : payload.lang
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getTranCat(dao.request.PfmGetTranCatRequest)" doc:name="Invoke static" doc:id="54b2728b-0c27-4af8-9670-1c57c49f4f66" class="service.IpayService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="e333d15c-c4bf-4345-919e-acaffc3e82b9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="668bbbd7-f9c5-4ff8-ac32-871670b9392b" message="#[payload]" />
+	</flow>
+	<flow name="Delete_virtual" doc:id="cd7f5cf5-bd61-4886-8243-a91dab259cf2" >
+		<http:listener doc:name="Listener" doc:id="f4c829d2-9cea-4b0a-a46a-1a06f4b663fd" config-ref="HTTP_Listener_config" path="/api/ipay/delete" allowedMethods="POST"/>
+		<logger level="INFO" doc:name="Logger" doc:id="2f725648-2dba-4117-b2a3-296464c352ba" message="#[payload]"/>
+		<db:delete doc:name="Delete" doc:id="b3aa32bf-d1ab-4344-b961-f75c1a50d690" config-ref="Database_Config">
+			<db:sql ><![CDATA[delete from ipay.ipay_virtual_transaction  where pid = :pid and cob_dt = :executionDate ;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	pid : payload.pid,
+	executionDate: payload.executionDate
+}]]]></db:input-parameters>
+		</db:delete>
+		<ee:transform doc:name="Transform Message" doc:id="895700af-1399-420b-a02d-99af68f05693" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "data": null,
+    "errorCode": 0,
+    "message": "Success",
+    "statusCode": 200
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="368c8dfc-397f-474a-8fdd-550f058de71a" message="#[payload]" />
+	</flow>
+	<flow name="delete" doc:id="ba070975-8e56-4978-9472-b7496a265742">
+		<http:listener doc:name="Listener" doc:id="791e5284-ee39-43f1-af59-29b144c8a97f" config-ref="HTTP_Listener_config" path="/api/ipay/deleteVirtualTrans" />
+		<logger level="INFO" doc:name="Logger" doc:id="3b1c6158-dff0-46ab-9d52-fa536fa0823d" message="#[payload]" />
+		<java:new constructor="DeleteRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="ed51d174-ac69-479c-8d82-3d233eb1d9da" class="dao.request.DeleteRequest" target="request">
+			<java:args><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	executionDate : payload.executionDate,
+	pid : payload.pid,
+	mappingId : payload.mappingId
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="deleteVirtualTrans(dao.request.DeleteRequest)" doc:name="Invoke static" doc:id="86a3fe6b-6b9f-4bd2-baa7-4d327e2e9d08" class="service.IpayService">
+			<java:args><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="5bc84178-c0ee-4377-a37e-cd9ed51c4283">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="3fd8ea5c-df51-4574-982c-7d3664735312" message="#[payload]" />
+	</flow>
+	<flow name="getOriginalTrans" doc:id="f7b4114b-e6cc-4a52-8b64-5426d2a113c9" >
+		<http:listener doc:name="Listener" doc:id="82883b62-53b1-468c-acc8-2878b6227d98" config-ref="HTTP_Listener_config" path="/api/ipay/getOriginalTrans" />
+		<logger level="INFO" doc:name="Logger" doc:id="696cf7f7-7d41-4630-bc67-34090680d18e" message="#[payload]" />
+		<java:new constructor="PfmGetTranCatRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="d47cf032-eb4d-46dd-b212-1db3a9023783" class="dao.request.PfmGetTranCatRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	executionDate : payload.executionDate,
+	accountNo : payload.accountNo,
+	tSeq : payload.tSeq,
+	hostRefNo : payload.hostRefNo,
+	transactionRef : payload.transactionRef,
+	lang : payload.lang
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getOriginalTrans(dao.request.PfmGetTranCatRequest)" doc:name="Invoke static" doc:id="57b1280c-d267-4f7a-a293-c214187a513b" class="service.IpayService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="8f246edb-5478-4fc9-b518-c985986e6f7e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="24a76540-58d1-48dc-b6be-c09e1e4c80db" message="#[payload]" />
+	</flow>
+	<flow name="getcardcate" doc:id="3b2b3d62-f004-4f5c-bfd0-23be0314a585" >
+		<http:listener doc:name="Listener" doc:id="b88ad2fc-5a05-494c-9f85-354858fd15e2" config-ref="HTTP_Listener_config" path="/api/ipay/getTransactionCardCategory"/>
+		<logger level="INFO" doc:name="Logger" doc:id="af3f0697-7c84-4248-bd4b-77b140eda113" message="#[payload]"/>
+		<java:new doc:name="New" doc:id="210663c9-c5a9-472b-a347-0df15f2213ac" class="dao.request.PfmGetTranCardRequest" constructor="PfmGetTranCardRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" target="request">
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	docNo : payload.docNo,
+	no : payload.no,
+	lang : payload.lang
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static doc:name="Invoke static" doc:id="e86300d8-3833-4330-b7dd-571988302dce" class="service.IpayService" method="getCardCategory(dao.request.PfmGetTranCardRequest)">
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="b1fee85a-e762-40aa-b9e7-3108b0a996fa" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="f4c50676-fee9-4ec7-aa59-58c9ce2d55b6" message="#[payload]" />
+	</flow>
+	<flow name="statisticbyCat" doc:id="bbec80a7-3a3c-4028-a01a-bb471956bfe4" >
+		<http:listener doc:name="Listener" doc:id="683d5f57-08df-40fb-b0d4-d664b960ac07" config-ref="HTTP_Listener_config" path="/api/ipay/getStatisticByCat" />
+		<logger level="INFO" doc:name="Logger" doc:id="e3d6f9e0-7165-4004-b95a-53750c8dc48c" message="#[payload]" />
+		<java:new doc:name="New" doc:id="90eddaee-4ab7-47df-9fb7-2c2e7106d72c" class="dao.request.BudgetRequest" target="request" constructor="BudgetRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	category : payload.categoryId,
+	periodFrom : payload.periodFrom,
+	periodTo : payload.periodTo,
+	periodType : payload.periodType
+
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getCategoryBudget(dao.request.BudgetRequest)" doc:name="Invoke static" doc:id="3e0d8202-0823-4f0c-bc2d-6634ab4ebf17" class="service.IpayService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="72addb07-b7f9-4153-ab19-75a943a1aa53" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="677c36d6-c624-49d0-bab6-663b216d4503" message="#[payload]" />
+	</flow>
+	<flow name="pfm_financial_health" doc:id="4ff3e1ee-7981-4a13-a1bf-e8015aada1c4" >
+		<http:listener doc:name="Listener" doc:id="23ee809e-3c93-4d81-b301-c7f0bce91df3" config-ref="HTTP_Listener_config" path="/api/ipay/getFinancialHealth"/>
+		<logger level="INFO" doc:name="Logger" doc:id="033b80a2-439f-400e-9d9c-4cc0221b7d88" message="#[payload]"/>
+		<java:new doc:name="New" doc:id="964b77c0-8e27-419a-8634-a4f8fe2ba722" class="dao.request.PfmFinanceRequest" constructor="PfmFinanceRequest(java.lang.String,java.lang.String,java.lang.String)" target="request">
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static doc:name="Invoke static" doc:id="83e31214-0ad5-461c-8008-691e52428bd9" class="service.IpayService" method="getFinanceHealth(dao.request.PfmFinanceRequest)">
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="6e411296-d24e-4d07-a589-52871cc9c0df" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="4ac2a301-6924-494c-ab96-26b463998e59" message="#[payload]"/>
+	</flow>
+	<flow name="pfm_financial_health1" doc:id="631095c3-414c-47fc-b1a5-3ac6847996fe" >
+		<http:listener doc:name="Listener" doc:id="18e0fd03-3b61-4db1-a02e-ac2a202de926" config-ref="HTTP_Listener_config" path="/api/ipay/getPredictedTransaction" />
+		<logger level="INFO" doc:name="Logger" doc:id="2f69ed4f-fe0b-4c8a-8da0-fc8fdca88f85" message="#[payload]" />
+		<java:new constructor="PfmFinanceRequest(java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="58688f95-15f5-4cc9-954e-7bd60c5d0f5b" class="dao.request.PfmFinanceRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getPredictedTransaction(dao.request.PfmFinanceRequest)" doc:name="Invoke static" doc:id="c2c19a81-bb40-49bb-874a-6b59e48597f7" class="service.IpayService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="dea60c46-ee90-4c8e-8a6c-f77fb9bef166" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="27eca713-1f7e-4b2d-8934-33cba23464b7" message="#[payload]" />
+	</flow>
+	<flow name="statisticOverview1" doc:id="e01b98a1-d9ae-4c58-b088-26a7b645d982" >
+		<http:listener doc:name="Listener" doc:id="d6909c85-ae38-4858-aba9-7e1eff7fcd60" config-ref="HTTP_Listener_config" path="/api/ipay/getStatisticByCategory" />
+		<logger level="INFO" doc:name="Logger" doc:id="995fa647-3820-4259-98da-f7231878ec1e" message="#[payload]" />
+		<java:new constructor="PfmStatisticByCatRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="e877036f-ff8b-4f9f-8b71-5c78151fb788" class="dao.request.PfmStatisticByCatRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	sessionId : payload.sessionId,
+	customerId : payload.customerId,
+	category : payload.category,
+	periodFrom : payload.periodFrom,
+	periodTo : payload.periodTo,
+	periodType : payload.periodType,
+	lang : payload.lang
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getStatisticByCat(dao.request.PfmStatisticByCatRequest)" doc:name="Invoke static" doc:id="42b8006a-4756-438e-848c-aa24b4e93cdf" class="service.IpayService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="b118bd00-16ce-4f3a-ba8d-de71f2a2bee0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="7b43ff16-4d6f-4257-a7f5-dcdd0f222f0f" message="#[payload]" />
+	</flow>
+</mule>

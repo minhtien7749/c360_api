@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="59b126d7-87e0-4df9-b3f5-3074b6cd2b45" >
+		<http:listener-connection host="0.0.0.0" port="8085" readTimeout="600" />
+	</http:listener-config>
+	<http:listener-config name="HTTP_Listener_config1" doc:name="HTTP Listener config" doc:id="76127025-15f8-4678-8447-5857c13e4ded" >
+		<http:listener-connection host="0.0.0.0" port="8086" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="1b4b9618-7354-47f8-837b-83163364d1f2" >
+		<db:my-sql-connection host="10.4.88.135" port="9030" user="customer360_user" password="customer360_user" database="customer360" />
+	</db:config>
+	<flow name="api_testFlow" doc:id="9b7cc548-620e-4943-af69-52c037d8a964" >
+		<http:listener doc:name="Listener" doc:id="e0cd2186-3f5f-4b7c-82bf-890ac93cc0f4" config-ref="HTTP_Listener_config" path="/api"/>
+		<db:select doc:name="Select" doc:id="8a0e751b-704d-4fc6-92b9-9167d4805dde" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from etl_process_log]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="f7a4e685-909c-4254-a444-8a58ff113f0d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="api_testFlow1" doc:id="a32ebdd9-619b-4c7b-a650-8f62f44bb71d" >
+		<http:listener doc:name="Listener" doc:id="f209d516-5769-479f-b7db-ba0be873ef9e" config-ref="HTTP_Listener_config" path="/api/dep"/>
+		<java:new doc:name="New" doc:id="97aafd77-9d07-4316-a19d-53384e1ad261" class="dao.request.DepDltFactRequest" constructor="DepDltFactRequest(java.lang.String,java.lang.String,java.lang.String,java.util.List,java.lang.String,java.util.List,java.lang.String,java.lang.String,java.lang.String)" target="request">
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	branch : payload.branch,
+	irnList: payload.irnList,
+	grp: payload.grp,
+	crcd: payload.crcd,
+	period: payload.period,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate
+	}]]]></java:args>
+		</java:new>
+		<java:invoke-static doc:name="Invoke static" doc:id="a3a9d12d-a2f5-46da-9b5d-575987ffb44c" class="service.CorpStatementService" method="getDepDtlFact(dao.request.DepDltFactRequest)">
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="a48a7bcf-3a37-459f-9888-c8236a690690" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

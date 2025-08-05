@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="69cab862-fc75-4993-8c90-48ec76ee2e02" >
+		<http:listener-connection host="0.0.0.0" port="8084" />
+	</http:listener-config>
+	<flow name="cusInfor" doc:id="344f3e25-4aff-4f57-9cd0-329fa5404e48" >
+		<http:listener doc:name="Listener" doc:id="f353fcba-62d3-4978-9cf6-a1818dc2e79a" config-ref="HTTP_Listener_config" path="/api/v1/CorprateCustomerProfile"/>
+		<logger level="INFO" doc:name="Logger" doc:id="00d119ae-ca0f-4fa5-9122-67783082e2fa" message="#[payload]"/>
+		<java:new constructor="CusProfileRequest(java.lang.String,java.lang.String)" doc:name="New" doc:id="7b47bed2-1747-4124-9fe4-f5c63bbf11ae" class="payload.request.CusProfileRequest" target="request">
+			<java:args ><![CDATA[#[{
+	customerId : payload.customerId,
+	requestId : payload.requestId
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static doc:name="Invoke static" doc:id="c19d5ac2-e083-4d02-b4e6-799fcce3af2a" class="service.AiApprovalService" method="getCorporateCustomerProfile(payload.request.CusProfileRequest)">
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="34a2b0a4-1b63-42cd-bfe9-bfb3b667c821" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="891f3004-3c9d-43a3-bbdf-17c01aeabe9a" message="#[payload]"/>
+	</flow>
+	<flow name="accountStatement" doc:id="aacac401-91af-4440-acd1-d8ec53b5ab7c" >
+		<http:listener doc:name="Listener" doc:id="cd329e83-3190-48a8-9c1d-4415efde8b28" config-ref="HTTP_Listener_config" path="/api/v1/AccountStatement" />
+		<logger level="INFO" doc:name="Logger" doc:id="844bc717-f9d0-46fb-9220-d1dac29a077c" message="#[payload]" />
+		<java:new constructor="AccountStatementRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,int)" doc:name="New" doc:id="5ad451a0-7032-418f-bc23-4faf100f5e99" class="payload.request.AccountStatementRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	customerId : payload.customerId,
+	requestId : payload.requestId,
+	fromDate : payload.fromDate,
+	endDate : payload.endDate,
+	pageSize : payload.pageSize,
+	pageNum : payload.pageNum
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getAccountStatement(payload.request.AccountStatementRequest)" doc:name="Invoke static" doc:id="469282d5-9c31-42d3-a2a7-5adb54752d62" class="service.AiApprovalService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="7599ef80-5b8f-43df-bfd4-5a7331d47873" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="17eaa245-a17a-4c3d-ac23-0c23b9c9c19e" message="#[payload]"/>
+	</flow>
+	<flow name="CorprateCustomerRelate" doc:id="2e10e213-6bb5-4d75-baf8-9cd4cab4d2e9" >
+		<http:listener doc:name="Listener" doc:id="db710432-9835-48ae-8a17-605a50cfb6b5" config-ref="HTTP_Listener_config" path="/api/v1/CorprateCustomerRelate" />
+		<logger level="INFO" doc:name="Logger" doc:id="a6955967-fffb-47d7-bd0a-36c2e2bb7993" message="#[payload]" />
+		<java:new constructor="CustomerRelationRequest(java.lang.String,java.lang.String,java.util.ArrayList,java.util.ArrayList)" doc:name="New" doc:id="9b1f171c-7667-4d87-baaf-804a572ff99b" class="payload.request.CustomerRelationRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	customerId : payload.customerId,
+	requestId : payload.requestId,
+	ids : payload.ids,
+	relation : payload.relation
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getCorporateCustomerRelated(payload.request.CustomerRelationRequest)" doc:name="Invoke static" doc:id="f3e0576d-d7b9-4abc-9e96-da80d86da117" class="service.AiApprovalService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="f0a952fc-b9bf-468d-8b32-472588571e69" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="7f6de10d-cb06-47f8-9834-e98810f1025e" message="#[payload]" />
+	</flow>
+	<flow name="CreditApproval" doc:id="07eb441a-0e6c-47a8-a97b-e14e2c0612f7" >
+		<http:listener doc:name="Listener" doc:id="fb1e926d-24c1-40b1-a6c4-05be1668d806" config-ref="HTTP_Listener_config" path="/api/v1/CreditApproval" />
+		<logger level="INFO" doc:name="Logger" doc:id="b4d112f6-6338-4618-9c13-99d3eec4462c" message="#[payload]" />
+		<java:new constructor="CreditApprovalRequest(java.lang.String,java.lang.String, java.lang.String, java.lang.String)" doc:name="New" doc:id="4bae81be-e33a-4779-b02c-79b0d821b075" class="payload.request.CreditApprovalRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	customerId : payload.customerId,
+	requestId : payload.requestId,
+	fromDate : payload.fromDate,
+	endDate : payload.endDate
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getCreditApproval(payload.request.CreditApprovalRequest)" doc:name="Invoke static" doc:id="108f344f-ba95-468d-934d-d9e3b8e9409b" class="service.AiApprovalService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="8ed34f20-2f77-4974-b8e8-7aa7fc58c25f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="a3e3478c-e899-407b-8ada-a57c036b57b2" message="#[payload]" />
+	</flow>
+	<flow name="CorprateCustomerCollateral" doc:id="7547b02d-489f-4ea6-989e-6d0b4623edda" >
+		<http:listener doc:name="Listener" doc:id="74ac4681-7f3f-4a00-8b6a-b66c5257e033" config-ref="HTTP_Listener_config" path="/api/v1/CorprateCustomerCollateral" />
+		<logger level="INFO" doc:name="Logger" doc:id="817b3e62-0c2c-4292-8b34-1fe29545ea7c" message="#[payload]" />
+		<java:new constructor="CusProfileRequest(java.lang.String,java.lang.String)" doc:name="New" doc:id="8b7dfa56-3921-4c3b-b951-529d7ca207ae" class="payload.request.CusProfileRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	customerId : payload.customerId,
+	requestId : payload.requestId
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getCustomerCollateral(payload.request.CusProfileRequest)" doc:name="Invoke static" doc:id="2749b456-2eaf-46f6-84cb-f0118c5491e5" class="service.AiApprovalService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="6c056755-1f71-45a0-b1f8-26d2eabe4012" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="f0c9d257-d56d-4471-8c77-22b2a4cd6c39" message="#[payload]" />
+	</flow>
+	<flow name="CustomerBussLine" doc:id="8a886342-a93b-4b33-a2cc-e6cd35d40c52" >
+		<http:listener doc:name="Listener" doc:id="9802453e-68b4-4cf4-8459-9642f2148c4c" config-ref="HTTP_Listener_config" path="/api/v1/CustomerBussLine" />
+		<logger level="INFO" doc:name="Logger" doc:id="1717aa7b-1452-4985-aebe-2605beb03f84" message="#[payload]" />
+		<java:new constructor="BusinessLineRequest(java.lang.String,java.math.BigDecimal,java.lang.String)" doc:name="New" doc:id="f07e0952-4e77-4ee3-8d3d-aacc7f6db6b6" class="payload.request.BusinessLineRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	net_rev : payload.net_rev,
+	requestId : payload.requestId,
+	level3 : payload.level3
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getCustomerBusinessLine(payload.request.BusinessLineRequest)" doc:name="Invoke static" doc:id="4c80352b-9a66-4b50-ae0d-9b1c5f180495" class="service.AiApprovalService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="987cde93-6267-4710-ad2e-fe1530220606" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="e3384b43-cdf6-4580-84a1-ecda8b5a97e1" message="#[payload]" />
+	</flow>
+	<flow name="CustomerBusPerformance" doc:id="efdb517d-594a-4b8b-ab4d-33350966e36d" >
+		<http:listener doc:name="Listener" doc:id="665d3458-29d9-42d4-a955-aba3c88ec664" config-ref="HTTP_Listener_config" path="/api/v1/CustomerBusPerformance" />
+		<logger level="INFO" doc:name="Logger" doc:id="0d69ff4d-503f-4562-93c1-bef010a766a7" message="#[payload]" />
+		<java:new constructor="BusinessLineRequest(java.lang.String,java.math.BigDecimal,java.lang.String)" doc:name="New" doc:id="36948c21-40a3-40ed-bf01-db31189b7c42" class="payload.request.BusinessLineRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	net_rev : payload.net_rev,
+	requestId : payload.requestId,
+	level3 : payload.level3
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getCustomerBusinessLinePerformance(payload.request.BusinessLineRequest)" doc:name="Invoke static" doc:id="b8eb15c9-dfc0-46fa-9b05-f91c6b293330" class="service.AiApprovalService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="96832131-6d90-4df5-9606-c06ffa3ddd4d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="d2e43c32-66b6-4807-97ed-87779dfa0fdb" message="#[payload]" />
+	</flow>
+	<flow name="CustomerBusPerformance1" doc:id="923c0c4e-ae60-4c2b-9ca9-2fdca28535f5" >
+		<http:listener doc:name="Listener" doc:id="c8f58cf2-02b3-4bc5-8727-9a5c1a77e981" config-ref="HTTP_Listener_config" path="/api/v1/CustomerPartnerPerformance" />
+		<logger level="INFO" doc:name="Logger" doc:id="6a57c8f9-0442-4dd4-8067-f800910f513b" message="#[payload]" />
+		<java:new constructor="PartnerPerformanceRequest(java.lang.String,java.util.ArrayList)" doc:name="New" doc:id="6761630a-42ae-48b9-b1ff-4577ceb18f9c" class="payload.request.PartnerPerformanceRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	taxIds : payload.taxIds,
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="partnerLinePerformance(payload.request.PartnerPerformanceRequest)" doc:name="Invoke static" doc:id="dbfc53a5-994b-4574-9f05-651393d79679" class="service.AiApprovalService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="956f0650-8b58-4cb5-9158-65261b4f4975" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="b5e4f972-f304-4434-a3d0-fa695a1ed042" message="#[payload]" />
+	</flow>
+	<flow name="uat_aiFlow" doc:id="6f5c1545-443c-4bc2-b694-fc4ad6de73f2" >
+		<http:listener doc:name="Listener" doc:id="e0b71465-432c-4ee9-a059-c3bf687a43c1" config-ref="HTTP_Listener_config" path="/hello"/>
+		<db:select doc:name="Select" doc:id="cdcff204-3e3f-47b7-87e2-c8ffa0a74670" />
+	</flow>
+
+</mule>

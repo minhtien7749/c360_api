@@ -1,0 +1,733 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="b373ce30-684f-4bba-bf43-bfdfa8a5438c" >
+		<http:listener-connection host="0.0.0.0" port="8080" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="e6e456c0-dee2-45fe-a999-6842484261a9" >
+		<db:my-sql-connection host="olap-db.icbv.com" port="9030" user="customer360_user" database="customer360" password="customer360_user"/>
+	</db:config>
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="9fe6c812-7774-4cdc-958a-330292d6fb36" />
+	<flow name="CustomerStatistic" doc:id="f7c863bd-e2c9-4d38-81e7-0c785671605f">
+		<http:listener doc:name="Listener" doc:id="b0eb87b6-5892-4a9f-a51d-d117f5938f5a" config-ref="HTTP_Listener_config" path="/api/customer/customerStatistic" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.transInfo.transactionId,&#10;	appId : payload.transInfo.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="df7ddd7e-fb93-4d3b-b904-9f27a0c559b7" variableName="reqs"/>
+		<logger level="INFO" doc:name="Logger" doc:id="0c5b70a8-4c67-4288-a306-308adfc3cf47" message="#[payload]" />
+		<java:new constructor="InputRequestCorporate(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="c23b966a-c5c1-47b8-87aa-eec2d2ce5ccf" class="c360.model.InputRequestCorporate" target="request">
+			<java:args><![CDATA[#[{
+	transactionId : payload.transInfo.transactionId,
+	appId : payload.transInfo.appId,
+	timeRequest : payload.transInfo.timeRequest,
+	cif : payload.cif,
+	fromDate : payload.fromDate,
+	cob_dt : payload.cob_dt,
+	branch : payload.branch,
+	period : payload.period
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getRespondBranch(c360.model.InputRequestCorporate)" doc:name="Invoke static" doc:id="24981ddc-b034-4329-96f7-b45e1876747f" class="c360.service.CustomerStatisticRespond">
+			<java:args><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;payload map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.reqs.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="17b99e6d-09b8-42f8-a88c-1b17caabf45e" variableName="response"/>
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="ae9d2ed6-6a83-4040-b5b6-cf225868a975" variableName="resp"/>
+		<ee:transform doc:name="Transform Message" doc:id="82dd6317-6d42-4f3e-aef9-3ed8af6f1a91">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="e999748c-50fd-4dcc-8f16-55193e181d10" message="#[payload]" />
+	</flow>
+	<flow name="CustomerToi" doc:id="59f2ac33-da74-48a4-9590-bd66e479669e" >
+		<http:listener doc:name="Listener" doc:id="aa1e5fbb-2360-47f9-8266-3e98e112a592" config-ref="HTTP_Listener_config" path="/api/customer/customer_toi" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.transInfo.transactionId,&#10;	appId : payload.transInfo.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="129dc70f-5238-467b-b182-489a5677f76a" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="aa8553b9-625f-41e3-82b6-d01e51089a4f" message="#[payload]" />
+		<java:new constructor="InputRequestCorporate(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="f08c708a-05a6-4765-9fe7-4f2d9d2cc235" class="c360.model.InputRequestCorporate" target="request" >
+			<java:args ><![CDATA[#[{
+	transactionId : payload.transInfo.transactionId,
+	appId : payload.transInfo.appId,
+	timeRequest : payload.transInfo.timeRequest,
+	cif : payload.cif,
+	fromDate : payload.fromDate,
+	cob_dt : payload.cob_dt,
+	branch : payload.branch,
+	period : payload.period
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getRespond(c360.model.InputRequestCorporate)" doc:name="Invoke static" doc:id="563fd746-49bf-4e67-b2f0-68ba8ecc89ba" class="c360.service.CustomerToiRespond" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;payload map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.reqs.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="0358aa80-0dd0-496d-b569-6961c8bf68c0" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="d3c877fa-0c18-48b2-b06f-43282d135c4e" variableName="resp" />
+		<ee:transform doc:name="Transform Message1" doc:id="1711be92-3511-44b4-b617-f994c6ad12b4">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="9b49d97f-96d4-439d-b66a-4174297321e3" message="#[payload]" />
+	</flow>
+	
+	
+	<flow name="CustomerCashflow" doc:id="aef7d41a-234b-48ed-bbbf-e7b143a2aca2" >
+		<http:listener doc:name="Listener" doc:id="320d77c4-ed51-42b1-afcf-7e3c544b717d" config-ref="HTTP_Listener_config" path="/api/customer/cashflow" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.transInfo.transactionId,&#10;	appId : payload.transInfo.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="f750a734-a2d8-4458-a3ff-b3673247c1cf" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="af5d2083-4724-4a6b-a7d4-40f30d70ec5f" message="#[payload]" />
+		<java:new constructor="InputRequestCorporate(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="5b604fc7-9963-4467-a465-96b58813c299" class="c360.model.InputRequestCorporate" target="request" >
+			<java:args ><![CDATA[#[{
+	transactionId : payload.transInfo.transactionId,
+	appId : payload.transInfo.appId,
+	timeRequest : payload.transInfo.timeRequest,
+	cif : payload.cif,
+	fromDate : payload.fromDate,
+	cob_dt : payload.cob_dt,
+	branch : payload.branch,
+	period : payload.period
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getRespond(c360.model.InputRequestCorporate)" doc:name="Invoke static" doc:id="2a174f4c-af3e-4968-9b35-0e876cc65e24" class="c360.service.CustomerCashFlowRespond" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;payload map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.reqs.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="4000957c-ff05-40e8-a915-1b12ce185433" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="514ae9c6-4e1b-4c3a-9f43-6aed092ab688" variableName="resp" />
+		<ee:transform doc:name="Transform Message" doc:id="e6686250-0aa5-47a3-bb82-6836a9d79c03" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="cca3767a-9796-44d0-baba-d35b6ad0d80a" message="#[payload]" />
+	</flow>
+	<flow name="CustomerCusLos" doc:id="4681e412-f3fe-4397-8a10-e411c3fc2529" >
+		<http:listener doc:name="Listener" doc:id="7f570184-1e43-4e14-ad7f-0232f61a2ef1" config-ref="HTTP_Listener_config" path="/api/customer/corporate_los_lmt_fact" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.transInfo.transactionId,&#10;	appId : payload.transInfo.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="f3d17eef-97fe-4b85-9ff5-1e13c609a762" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="a03c2ac8-2666-4459-be45-bd7f09e7ee9b" message="#[payload]" />
+		<java:new constructor="InputRequestCorporate(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="492a3ad6-8e43-4072-a781-c7ac53f3d4a3" class="c360.model.InputRequestCorporate" target="request" >
+			<java:args ><![CDATA[#[{
+	transactionId : payload.transInfo.transactionId,
+	appId : payload.transInfo.appId,
+	timeRequest : payload.transInfo.timeRequest,
+	cif : payload.cif,
+	fromDate : payload.fromDate,
+	cob_dt : payload.cob_dt,
+	branch : null,
+	period : payload.period
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getRespond(c360.model.InputRequestCorporate)" doc:name="Invoke static" doc:id="18d3b7a9-e641-4153-85b3-0d45fbbe73c6" class="c360.service.CusLosLmtRespond" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;payload map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.reqs.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="342f69ac-073d-4847-9a5a-b251866cf97f" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="16ed4de4-26bc-4b67-bdd5-b0e7942ea2b1" variableName="resp" />
+		<ee:transform doc:name="Transform Message" doc:id="fa916e9d-54e3-458f-874f-49740f3c6423" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="d5b83ca8-58aa-45e3-96a4-030e427f0ea5" message="#[payload]" />
+	</flow>
+	<flow name="atmStatistic" doc:id="1d933421-d3ed-4414-86e0-11a166972fab" >
+		<http:listener doc:name="Listener" doc:id="17e41e2a-46d0-45ea-91d0-8dce63f62597" config-ref="HTTP_Listener_config" path="/api/m16s05/atmStatistic" />
+		<logger level="INFO" doc:name="Logger" doc:id="e4fecaa6-7d29-4223-8530-42d3229ea005" message="#[payload]" />
+		<set-variable value="#[payload.transInfo.transactionId]" doc:name="Set Variable" doc:id="0c2d1a40-d0f7-4be4-9541-cdace03e9118" variableName="requestId" />
+		<set-variable value="#[(payload.atm_id map (v) -&gt; &quot;'&quot; ++ v ++ &quot;'&quot;) joinBy &quot;, &quot;]" doc:name="atm_id" doc:id="3ed496af-c7f8-44b0-b1e2-ce74102a7218" variableName="atm_id" />
+		<ee:transform doc:name="Transform Message" doc:id="2a1ab44c-0716-431b-80ec-980b403f33e5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+" select * from m16s05.pgd_prediction a
+where a.atm_id in ( " ++ vars.atm_id ++ " ) and current_timestamp() < timeframe "]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:select doc:name="Select" doc:id="d3dd9001-1b81-4abe-b602-b86317c44cd2" config-ref="Database_Config" >
+			<db:sql ><![CDATA[#[payload]]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message1" doc:id="7ff36d5d-1bf5-4feb-8410-15c554801339" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map (item, index) -> (
+    {
+        "requestId": vars.requestId
+    } ++ item
+)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="ea0e613f-ff44-44fd-bd29-c8aa1f1c77d4" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	requestId : vars.requestId,&#10;	response : payload&#10;}]" />
+	</flow>
+	
+	<flow name="c360_corporate_cus_profile_dly" doc:id="b34838f3-93ca-487d-822a-1e696ac40d97" >
+		<http:listener doc:name="Listener" doc:id="6964060f-3e56-4a10-a2bc-0621e25d26d4" config-ref="HTTP_Listener_config" path="/api/customer/c360_corporate_cus_profile_dly" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.transInfo.transactionId,&#10;	appId : payload.transInfo.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="920ae0d7-9337-4727-a31d-d77347c7c479" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="f933bd7b-550e-4af0-84c4-9bd65703b221" message="#[payload]" />
+		<java:new constructor="InputRequestCorporate(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="13572604-26ba-4e6d-8711-c0b15326613b" class="c360.model.InputRequestCorporate" target="request" >
+			<java:args ><![CDATA[#[{
+	transactionId : payload.transInfo.transactionId,
+	appId : payload.transInfo.appId,
+	timeRequest : payload.transInfo.timeRequest,
+	cif : payload.cif,
+	fromDate : payload.fromDate,
+	cob_dt : payload.cob_dt,
+	branch : null,
+	period : payload.period
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static doc:name="Invoke static" doc:id="c4746bde-4adb-4664-ad2a-87b023ec35f3" class="c360.service.CusCorpProfileRespond" method="getRespond(c360.model.InputRequestCorporate)">
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;payload map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.reqs.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="d8fd45a0-ce07-4787-9e77-ddc8cf181b3c" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="02569251-0d63-46b7-820e-3f455ee2abc1" variableName="resp" />
+		<ee:transform doc:name="Transform Message1" doc:id="0fd33d29-3986-4871-b8cd-9ee25dd2fd7d">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="6d0fec6c-a598-4277-9d23-6afb8ffd6bb0" message="#[payload]" />
+	</flow>
+	<flow name="c360_corporate_im_ex" doc:id="0fc6a34c-aaec-48a6-8c96-1acb0e1b4b26">
+		<http:listener doc:name="Listener" doc:id="b246f166-6ad4-4561-8049-583a393a57ea" config-ref="HTTP_Listener_config" path="/api/customer/im_ex" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.transInfo.transactionId,&#10;	appId : payload.transInfo.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="84cf37f7-fbbe-4774-81c1-25a4e51ac6f8" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="64f33825-72c8-4a25-9bc6-0e55f985c273" message="#[payload]" />
+		<java:new constructor="InputRequestCorporate(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="44896ac2-47ea-4814-8fd3-6c26bc174d97" class="c360.model.InputRequestCorporate" target="request">
+			<java:args><![CDATA[#[{
+	transactionId : payload.transInfo.transactionId,
+	appId : payload.transInfo.appId,
+	timeRequest : payload.transInfo.timeRequest,
+	cif : payload.cif,
+	fromDate : payload.fromDate,
+	cob_dt : payload.cob_dt,
+	branch : payload.branch,
+	period : payload.period,
+	taxId : payload.tax_id
+}]]]></java:args>
+		</java:new>
+		<java:invoke-static method="getRespond(c360.model.InputRequestCorporate)" doc:name="Invoke static" doc:id="e9e8bcd7-d152-4974-8f4d-e9ba90e37de1" class="c360.service.ImportExportRespond">
+			<java:args><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;payload map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.reqs.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="a738b78d-48c1-4fe0-9827-4cebbd539b3b" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="f0665cb3-409b-4b20-80f5-94ee607aecd6" variableName="resp" />
+		<ee:transform doc:name="Transform Message" doc:id="ea40df68-9784-4440-9e1c-e17e30b43a12">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="095307e5-7112-4ce3-b6d2-3a54615d5500" message="#[payload]" />
+	</flow>
+	<flow name="identification" doc:id="8aa6b246-972e-4ded-8aa8-fb02cef7661c" >
+		<http:listener doc:name="Listener" doc:id="a0970b1b-9ca0-4316-b847-4ff8f9f2a5ec" config-ref="HTTP_Listener_config" path="/api/customer/identification" >
+			<http:error-response >
+				<http:body ><![CDATA[#[payload]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<validation:is-not-null doc:name="Is not null" doc:id="85fa4156-91b2-43e6-acc6-f8a3728ad4ed" value="#[payload.cid]" config-ref="Validation_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="e24fe36f-68b5-4a4f-a7c2-e2c0822caeb7" message="#[payload]" />
+		<set-variable value="#[payload.transInfo.transactionId]" doc:name="Set Variable" doc:id="0118bc91-69b5-45cc-917a-d77e1b6d1fe2" variableName="requestId" />
+		<set-variable value="#[(payload.cid map (v) -&gt; &quot;'&quot; ++ v ++ &quot;'&quot;) joinBy &quot;, &quot;]" doc:name="cid" doc:id="3eae8203-11cd-4e5e-88fb-3083ca9af505" variableName="cid" />
+		<ee:transform doc:name="Transform Message" doc:id="3ab0d10a-220d-49b2-83bf-0d5e3baaa4ce" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"
+SELECT * 
+FROM cus_identification.cus_identity a
+where a.cid in ( " ++ vars.cid ++ " ) and cob_dt = (select max(cob_dt) from customer360.ETL_PROCESS_LOG 
+where job_name = 'c360_cus_identification' and process_sts = 'S' and clean_sts = '0' ) "]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:select doc:name="Select" doc:id="04f5da04-3041-425d-ac81-d23d64365ece" config-ref="Database_Config" >
+			<error-mapping targetType="APP:select" />
+			<db:sql ><![CDATA[#[payload]]]></db:sql>
+		</db:select>
+		<set-variable value='#[%dw 2.0&#10;output application/json&#10;var result = payload groupBy ((item) -&gt; item.cif ++ "-" ++ item.cid ++ "-" ++ item.branch_cd ++ "-" ++ item.cus_name) pluck (value, key, index) -&gt; {&#10;    status : {&#10;    	statusCode : 200,&#10;    	message : "Success"&#10;    },&#10;    cif: value[0].cif,&#10;    cus_name : value[0].cus_name,&#10;    cid: value[0].cid,&#10;    branch_cd: value[0].branch_cd,&#10;    dly_loan_bal_amt: value[0].dly_loan_bal_amt,&#10;    identification: value map {&#10;        identification_number: $.identification_number,&#10;        identification_type: $.identification_type&#10;    },&#10;    cus_name : value[0].cus_name,&#10;	acct_stat : value[0].acct_stat,&#10;	date_of_birth : value[0].date_of_birth,&#10;	gender : value[0].gender,&#10;	tax_id : value[0].tax_id,&#10;	phone_number : value[0].phone_number,&#10;	address : value[0].address,&#10;	currency_code : value[0].currency_code,&#10;	open_date : value[0].open_date,&#10;	close_date : value[0].close_date,&#10;	channel : value[0].channel, &#10;	nationality : value[0].nationality,&#10;    cob_dt: value[0].cob_dt&#10;}&#10;---&#10;result map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="af3cd2df-79f8-4c78-a4d6-bf5327ad2b4d" variableName="response" />
+		<ee:transform doc:name="Transform Message1" doc:id="9da2f293-46b0-4953-b520-9c40f0e8c040" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+var data = if (vars.response.cid == null) [{
+	status : {
+		statusCode : 404,
+		message : "cid Not Found"
+	},
+	"requestId": vars.requestId
+}] else vars.response 
+---
+data]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="fa50557c-574d-4c59-9634-3c45ac1c2f38" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	requestId : vars.requestId,&#10;	response : payload&#10;}]" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="610e6778-ac39-4c4a-a18f-7fd8d813a018" type="VALIDATION:NULL">
+				<ee:transform doc:name="Transform Message" doc:id="b2582efc-db63-40b2-b881-776e89d18256" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+[{
+	"status" : {"statusCode" : 422, 
+		       "message" : "cid must be not null"
+	}
+}]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="88176997-472f-424e-8dc3-c1fbe1995a54" type="DB:BAD_SQL_SYNTAX, DB:CONNECTIVITY, DB:QUERY_EXECUTION, DB:RETRY_EXHAUSTED">
+				<ee:transform doc:name="Transform Message" doc:id="469ca379-b4f8-4491-b826-5a2d61eea014" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+[{
+	"status" : {"statusCode" : 500, 
+		       "message" : "Internal Server Error"
+	}
+}]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="Customer_behaviour" doc:id="28bad732-06c3-47c0-83d5-a0ca296b1101" >
+		<http:listener doc:name="Listener" doc:id="8af5eac0-4efc-4fe0-9037-7fa2e00c70ca" config-ref="HTTP_Listener_config" path="/api/customer/retail/behaviour" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.requestId,&#10;	appId : payload.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="5c47a1fe-4605-48f6-988a-b09b9b5f7b8b" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="e73320fe-98d1-4e37-a7da-5399283e572c" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		<db:select doc:name="Select" doc:id="9d01b793-f7d2-42e3-8bab-94d19dedc41c" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select * from customer360.retail_customer_behaviour 
+where cif = :cif and cob_dt = (select max(cob_dt) from customer360.ETL_PROCESS_LOG where job_name = 'retail_customer_behaviour' and process_sts = 'S' and clean_sts = '0')]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	cif : payload.cif
+}]]]></db:input-parameters>
+		</db:select>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;fun distinctList(list) = list distinctBy $&#10;fun filternull(list) = list filter((item, index) -&gt; item != null )&#10;---&#10;{   requestId : vars.reqs.requestId,&#10;	cif : payload.cif[0],&#10;	cusBehaviour : {ha_behaviour : filternull(distinctList(payload.hypothesis)),&#10;	                cust_behaviour : filternull(distinctList(payload.invoice_category_name))}&#10;	&#10;	&#10;}]' doc:name="Set Variable" doc:id="32d7f112-adad-45d2-b235-a7826ca6f09d" variableName="response"/>
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="e42572f0-2181-405e-97f5-65ec04112e6d" variableName="resp"/>
+		<ee:transform doc:name="Transform Message" doc:id="6b17ead1-23a9-48f5-9c50-2790eb920fc9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="65b5bd62-accd-4427-80a4-ba13383e901e" message="#[{&#10;	requestId : vars.requestId,&#10;	response : payload&#10;}]" />
+	</flow>
+	<flow name="Customer_collateral" doc:id="14c5c669-6630-4f0d-8bcd-78cda1dc6cea" >
+		<http:listener doc:name="Listener" doc:id="c73383ac-6a14-4dc9-b368-e5fb2a5040ea" config-ref="HTTP_Listener_config" path="/api/customer/retail/collateral" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.requestId,&#10;	appId : payload.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="0cba849e-bdd4-41f3-ab68-ad0b4569e404" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="77b7156d-77ec-462a-944e-1889f64ecb67" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		<db:select doc:name="Select" doc:id="c75a0eb4-bb28-41eb-ad65-ef8a7d457e64" config-ref="Database_Config" >
+			<db:sql ><![CDATA[SELECT owner_cif , colla_id_group_name , sum(cast(colla_amt AS DECIMAL)) AS gt_tsdb
+FROM customer360.c360_cus_los_colla_dtls cclcd 
+WHERE cob_dt = (SELECT MAX(COB_DT) FROM customer360.ETL_PROCESS_LOG epl WHERE job_name = 'c360_cus_los_colla_dtls' and process_sts = 'S' and clean_sts = '0') and owner_cif = :cif 
+GROUP BY owner_cif , colla_id_group_name ;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	cif : payload.cif
+}]]]></db:input-parameters>
+		</db:select>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;{   requestId : vars.reqs.requestId,&#10;	cif : payload.owner_cif[0],&#10;	collateral : if (payload.colla_id_group_name == null) [{collateralname : null, collateralValue: null}] else (payload.colla_id_group_name zip payload.gt_tsdb) map ((item, index) -&gt;{&#10;		collateralname : item[0],&#10;		collateralValue: item[1]&#10;	} )&#10;	&#10;	&#10;}]' doc:name="Set Variable" doc:id="8677ae97-7d0b-4eae-af12-a0c2e11d6843" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="e364cf5e-d020-4505-9b1d-409a45f24c22" variableName="resp" />
+		<ee:transform doc:name="Transform Message" doc:id="f28a2c43-13b7-48b8-a530-7a1c95521740" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="95733fd1-a58d-4e19-bd2a-51f51893155c" message="#[{&#10;	requestId : vars.requestId,&#10;	response : payload&#10;}]" />
+	</flow>
+	<flow name="Customer_info" doc:id="eb939df4-a000-440a-a274-a06b9aaedfd2" >
+		<http:listener doc:name="Listener" doc:id="9bbea454-cebb-4008-ab4a-a892d07d577e" config-ref="HTTP_Listener_config" path="/api/customer/retail/info" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.requestId,&#10;	appId : payload.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="24231a6c-6791-418f-a7ec-df787fa377b7" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="d5e86372-3fc6-4a38-b35a-0ea4a649c14d" message="#[payload]" />
+		<db:select doc:name="Select" doc:id="6aface55-0895-4a47-9b28-ab1651bcbc98" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select distinct A.cif_no as customer_id, A.bank_age timewithvtb, B.job_title, B.nam_khdn, C.thu_nhap, nam_khcn
+from (
+select * 
+from customer360.c360_retail_cus_profile_dly crcpd 
+where cif_no = :cif and cob_dt = (select max(cob_dt) from customer360.ETL_PROCESS_LOG epl2 where job_name = 'c360_retail_cus_profile_dly' and process_sts = 'S' and clean_sts = '0')) A 
+left join 
+(select cif_khcn , job_title , nam_khdn, nam_khcn 
+from customer360.c360_leader_dly cld 
+where cob_dt = (select max(cob_dt) from customer360.ETL_PROCESS_LOG epl2 where job_name = 'c360_leader_dly' and process_sts = 'S' and clean_sts = '0') and cif_khcn = :cif) B  on A.cif_no = B.cif_khcn
+left join 
+(select crdt_cus_cif_nbr , sum(tot_sal_in_tc) as thu_nhap
+from customer360.c360_pay_sal_fact cpsf 
+where cob_dt = (select max(cob_dt) from customer360.ETL_PROCESS_LOG epl2 where job_name = 'c360_pay_sal_fact' and process_sts = 'S' and clean_sts = '0') and crdt_cus_cif_nbr = :cif
+group by crdt_cus_cif_nbr) C on C.crdt_cus_cif_nbr = A.cif_no;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	cif : payload.cif
+}]]]></db:input-parameters>
+		</db:select>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;fun distinctList(list) = list distinctBy $&#10;fun filternull(list) = list filter((item, index) -&gt; item != null )&#10;var x = if (payload.nam_khdn == null and payload.job_title ==null) {name_khdn: null, job_title: null}&#10;        else if (payload.nam_khdn == null and payload.job_title != null) {name_khdn: null, job_title: payload.job_title[0]}&#10;        else if (payload.nam_khdn != null and payload.job_title == null) {name_khdn: payload.nam_khdn, job_title: null}&#10;        else (payload.nam_khdn zip payload.job_title) map ((item, index) -&gt;{&#10;		name_khdn : item[0],&#10;		job_title: item[1]&#10;	} )&#10;---&#10;{   requestId : vars.reqs.requestId,&#10;	cif : payload.customer_id[0],&#10;	position : x,&#10;	income : payload.thu_nhap[0],&#10;	timeWithVTB:payload.timewithvtb[0]&#10;	&#10;}]' doc:name="Set Variable" doc:id="09bd66dc-681c-437f-bf2c-7a7ca064fa69" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="0804e7bc-ce68-4ef1-af3c-3b9ea32f4f58" variableName="resp" />
+		<ee:transform doc:name="Transform Message" doc:id="26ddd14c-9a7b-43df-ba96-feda584ff00d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="02f9ed45-62cf-48b1-9e2e-f69d137346ce" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	requestId : vars.requestId,&#10;	response : payload&#10;}]" />
+	</flow>
+	<flow name="CIC" doc:id="734fa060-98ed-471d-9c84-17ae7ed033d0" >
+		<http:listener doc:name="Listener" doc:id="620b6e90-c8d3-4638-85ca-a995627a0af5" config-ref="HTTP_Listener_config" path="/api/customer/retail/cic" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.requestId,&#10;	appId : payload.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="9dc38414-590d-49bc-abcf-a2c7a731a6e6" variableName="reqs" />
+		<logger level="INFO" doc:name="Logger" doc:id="c8750bb3-b94e-4a72-9485-8ff0b9375b95" message="#[payload]" />
+		<db:select doc:name="Select" doc:id="8370a8c9-c7e6-4a33-88ff-31c89711dcc8" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select * 
+from customer360.m5s01_cic_data
+where cif = :cif ]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	cif : payload.cif
+}]]]></db:input-parameters>
+		</db:select>
+		<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;var x = if (payload.credit_at_bank[0] == null ) null else read(payload.credit_at_bank[0],"application/json")&#10;var y = if (payload.current_outstanding[0] == null ) null else read(payload.current_outstanding[0],"application/json")&#10;var z = if (payload.current_outstanding[0] == null ) null else read(payload.current_group_debt[0],"application/json")&#10;var t = if (payload.credit_card_at_bank[0] == null ) null else read(payload.credit_card_at_bank[0],"application/json")&#10;var w = if (payload.credit_card_limit[0] == null ) null else read(payload.credit_card_limit[0],"application/json")&#10;---&#10;{   requestId : vars.reqs.requestId,&#10;	cif : payload.cif[0],&#10;	cust_name : payload.cust_name[0],&#10;	cic_code : payload.cic_code[0],&#10;	id_code : payload.id_code[0],&#10;	address : payload.address[0],&#10;    credit_at_bank : if (x == null) [{credit_at_bank: null, current_outstading : null, current_group_debt: null, update_dt : payload.update_dt[0]}] else (x zip y zip z map {credit_at_bank : $[0][0], current_outstading: $[0][1]*1000000, current_group_debt: $[1], update_dt : payload.update_dt[0]}),&#10;	bad_deb_12m : payload.bad_debt_12m[0],&#10;	collateral_value : null,&#10;    credit_card_at_bank: if (t == null) [{credit_card_at_bank: null, credit_card_limit : null, current_group_debt: null, update_dt : payload.update_dt[0]}] else (t zip w  map {credit_card_at_bank: $[0], credit_card_limit: $[1]*1000000, update_dt : payload.update_dt[0]}),&#10;	credit_card_late_payment_12m : payload.credit_card_late_payment_12m[0],&#10;	credit_score : payload.credit_score[0],&#10;	file_name : payload.file_name[0],&#10;	update_dt : payload.update_dt[0]&#10;	&#10; &#10;}]' doc:name="Set Variable" doc:id="3e55c8a2-750f-4518-a210-1e7894c1aa36" variableName="response" />
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="d357ef5c-38e1-4a74-8e97-eaed8059da2c" variableName="resp" />
+		<ee:transform doc:name="Transform Message" doc:id="88f1ebaf-bac9-4cf3-a183-208f029bb3a9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.response]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="f351adbe-569b-46ef-9c5b-2631c1090e52" message="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	requestId : vars.requestId,&#10;	response : payload&#10;}]" />
+	</flow>
+	<flow name="listdate" doc:id="a5729b94-4302-4e17-92b9-207f2e82c56a" >
+		<http:listener doc:name="Listener" doc:id="42143b6a-f2b5-4f18-912f-8384a8513ba0" config-ref="HTTP_Listener_config" path="/api/listdate" />
+		<set-variable value='#[%dw 2.0&#10;---&#10;{&#10;	requestId : payload.transInfo.transactionId,&#10;	appId  : payload.transInfo.appId,&#10;	currentTime : now(),&#10;	timestamp : now() as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}&#10;}]' doc:name="Set Variable" doc:id="dd1ce60b-3c82-4f2f-864e-d517aa4cacdf" variableName="reqs"/>
+		<logger level="INFO" doc:name="Logger" doc:id="2a90bc25-0824-4e21-84a4-86056d48cb9e" message="#[payload]"/>
+		<db:select doc:name="Select" doc:id="a2d890a0-89a3-4acf-9c6e-43d4d69bbca9" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select distinct job_name, cob_dt
+from customer360.ETL_PROCESS_LOG epl 
+where job_name  = :job_name and process_sts  = 'S' and (clean_sts is null or clean_sts = '0')]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	job_name : payload.job_name
+}]]]></db:input-parameters>
+		</db:select>
+		<set-variable value='#[%dw 2.0&#10;output application/json&#10;var a = payload groupBy ((item) -&gt; item.job_name)&#10;var x = payload distinctBy ((item) -&gt; item.job_name)&#10;var c = x map ((index, item) -&gt; {job_name : a[item].job_name[0], list_date: a[item].cob_dt})&#10;---&#10;c map (item, index) -&gt; (&#10;    {&#10;        "requestId": vars.reqs.requestId&#10;    } ++ item&#10;)]' doc:name="Set Variable" doc:id="95650b3e-befa-4d16-aab9-da34f5339485" variableName="response"/>
+		<set-variable value='#[%dw 2.0&#10;var currentTime = now()&#10;---&#10;{&#10;	requestId : vars.reqs.requestId,&#10;	appId : vars.reqs.appId,&#10;	timestampResponse : currentTime as String {format: "yyyy-MM-dd HH:mm:ss.SSS"},&#10;	timestampReceive : vars.reqs.timestamp,&#10;	timeResponse : (currentTime - vars.reqs.currentTime) as Number,&#10;	currentDate: currentTime as String {format: "yyyy-MM-dd"}&#10;	&#10;}]' doc:name="Set Variable" doc:id="3e873b08-0de0-4e74-8583-72bff483ee21" variableName="resp"/>
+		<ee:transform doc:name="Transform Message" doc:id="f07dbb21-05d6-4211-81a9-3b36004a1102" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.response
+	]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="companynew" doc:id="5accd8d9-f8b7-4081-94ab-98eb74b71cdd" >
+		<http:listener doc:name="Listener" doc:id="d20318ae-294f-40e8-9cc1-2db98b70fcc9" config-ref="HTTP_Listener_config" path="/api/customer/companyNews"/>
+		<set-variable value="#[{&#10;	mst : payload.mst,&#10;	requestId : payload.requestId&#10;}]" doc:name="Set Variable" doc:id="0fc2cea6-d0ad-48ec-accc-b1c5c2a316e0" variableName="request"/>
+		<db:select doc:name="Select" doc:id="47d5d3c7-f075-428c-9d26-f28d4cef5f1b" config-ref="Database_Config">
+			<db:sql ><![CDATA[select title,link,source,company_name,sentence,tag,pub_time,company_name2,runtime,mst
+from (
+select title,link,source,company_name,sentence,tag,pub_time,company_name2,runtime,mst, ROW_NUMBER () over (partition by mst order by cast(pub_time as datetime) desc ) as rank_ 
+from customer360.c360_company_news 
+where mst = :mst and runtime >= DATE_ADD(CURDATE(),-10)
+) a where rank_ <= 20;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	mst : payload.mst
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="4f4e7bd6-812c-47a0-8173-fa2b66f90eba" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "data": payload,
+    "requestId" : vars.request.requestId,
+    "mst" : vars.request.mst,
+    "errorCode": 0,
+    "message": "Success",
+    "statusCode": 200
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+<flow name="depdtdtlfact" doc:id="c7377d5f-4b29-417e-8065-5a23740d9af1" >
+		<http:listener doc:name="Listener" doc:id="e7cac967-64c7-4ea0-8986-35d57f92f86c" config-ref="HTTP_Listener_config" path="/api/deptdtlfact" />
+		<logger level="INFO" doc:name="Logger" doc:id="7401c4b4-1334-4610-b2fb-d7a211618651" message="#[payload]" />
+		<java:new constructor="DepDltFactRequest(java.lang.String,java.lang.String,java.lang.String,java.util.List,java.lang.String,java.util.List,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="9a7d2c88-5309-4068-8e82-4d694a94e62d" class="dao.request.DepDltFactRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	branch : payload.branch,
+	irnList: payload.irnList,
+	grp: payload.grp,
+	crcd: payload.crcd,
+	period: payload.period,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getDepDtlFact(dao.request.DepDltFactRequest)" doc:name="Invoke static" doc:id="0f4e209b-57b2-4b48-8c2e-19ab72e6650d" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="1bbbabdb-ae4a-4e18-a262-b6709fb4b5d9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>	
+<flow name="lndtdtlfact" doc:id="a7289993-36d9-4a00-976b-141131fbf032" >
+		<http:listener doc:name="Listener" doc:id="2d7c77d7-46c7-445c-9a98-cd0663812286" config-ref="HTTP_Listener_config" path="/api/lndtdtlfact" />
+		<logger level="INFO" doc:name="Logger" doc:id="b1e42030-f32a-4224-8dee-0ec6b69ebdd0" message="#[payload]" />
+		<java:new constructor="LnDtlFactRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.util.List,java.lang.String,java.lang.String)" doc:name="New" doc:id="471c2522-7978-4005-a160-8ef0e63f7008" class="dao.request.LnDtlFactRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	branch : payload.branch,
+	period: payload.period,
+	irnList: payload.irnList,
+	crcd: payload.crcd,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getLnDltFact(dao.request.LnDtlFactRequest)" doc:name="Invoke static" doc:id="ce3cffdd-ce79-4d31-b480-d4b88aa489ce" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="22c6008a-1a6a-4ae2-a072-4ff9e7cf30cf" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>		
+	
+	<flow name="lnStatistic" doc:id="5d8934c0-5292-49ea-92a8-fd5e42430bcd" >
+		<http:listener doc:name="Listener" doc:id="a320716b-1111-44b7-83bc-9d156788067c" config-ref="HTTP_Listener_config" path="/api/lnStatistic" />
+		<logger level="INFO" doc:name="Logger" doc:id="084290bf-8598-4bd0-8067-1771db4cb885" message="#[payload]" />
+		<java:new constructor="LonStatisticRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="d52572d8-3a4a-4751-a79d-aadc929b6906" class="dao.request.LonStatisticRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	branch : payload.branch,
+	period: payload.period,
+	fromDate : payload.fromDate,
+	toDate : payload.toDate
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getLonStatistic(dao.request.LonStatisticRequest)" doc:name="Invoke static" doc:id="ea94b7bf-db34-4c83-866e-2288b3620629" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="4accd67d-4e30-4b1c-a3fb-33b819ede28b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>		
+	
+
+<flow name="taxdata" doc:id="6f5b1a42-84e4-4a13-9fdd-3265dd95ba09" >
+		<http:listener doc:name="Listener" doc:id="32d6c02a-0982-418c-af9a-0894aef6403a" config-ref="HTTP_Listener_config" path="/api/taxdata" />
+		<logger level="INFO" doc:name="Logger" doc:id="ff99117b-6a99-4c5b-b069-ee95ffcb9d2c" message="#[payload]" />
+		<java:new constructor="TaxDataRequest(java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="7dc951b3-8001-4b31-9885-5e73eba69770" class="dao.request.TaxDataRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	taxNo : payload.taxNo,
+	cobDt: payload.cobDt
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getTaxData(dao.request.TaxDataRequest)" doc:name="Invoke static" doc:id="d1f7c71f-4680-467d-b4af-b492de031862" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="9b1fcb81-a261-4e67-958a-735f81e98571" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>			
+		
+
+<flow name="customercomplaints" doc:id="ba41b8d4-7538-4f26-94e7-cce40c31195b" >
+		<http:listener doc:name="Listener" doc:id="8e262bb0-43fb-4ccb-a8f5-44932f5f8027" config-ref="HTTP_Listener_config" path="/api/contactcenter" />
+		<logger level="INFO" doc:name="Logger" doc:id="8d7698f1-9b02-4390-baff-9f7a8531c46d" message="#[payload]" />
+		<java:new constructor="CustomerComplaintsRequest(java.lang.String,java.lang.String,java.util.List)" doc:name="New" doc:id="27372fe8-b794-4737-9d34-41d11db8f770" class="dao.request.CustomerComplaintsRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	phones : payload.phones
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getCustomerComplaints(dao.request.CustomerComplaintsRequest)" doc:name="Invoke static" doc:id="c98295ed-701e-48e7-bd66-d4802c021b30" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="fa0b4e46-2f8b-4864-8659-610c37db2c88" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>		
+					
+	
+	<flow name="depdetail" doc:id="699d80ab-14f4-4f8e-af80-cf63edb10bab" >
+		<http:listener doc:name="Listener" doc:id="8f8883f5-20bc-440b-9a8f-0bf6991e8d76" config-ref="HTTP_Listener_config" path="/api/depdetail" />
+		<logger level="INFO" doc:name="Logger" doc:id="7d2edaa6-9d9f-4cff-b28e-5e725f4537cf" message="#[payload]" />
+		<java:new constructor="DepDetailRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="01e039b0-3682-45db-a50f-f7de99cdaabd" class="dao.request.DepDetailRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	grp : payload.grp,
+	cobDt : payload.cobDt
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getDepDetail(dao.request.DepDetailRequest)" doc:name="Invoke static" doc:id="5494885f-3793-4660-a3a1-f2473d273861" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="ca846304-fb49-4713-8992-ce3e9757ae8d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>	
+	
+		<flow name="lndetail" doc:id="5d3efe29-9980-4598-96f3-73f38b54689e" >
+		<http:listener doc:name="Listener" doc:id="20a9a6cb-68a2-45be-90d6-2d4f1a426db7" config-ref="HTTP_Listener_config" path="/api/lndetail" />
+		<logger level="INFO" doc:name="Logger" doc:id="77664617-d6cb-405e-bc3d-6cbf46d180a0" message="#[payload]" />
+		<java:new constructor="LnDetailRequest(java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="6cebe665-2e53-4d52-bf97-58b227a19a40" class="dao.request.LnDetailRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	cobDt : payload.cobDt
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getLnDetail(dao.request.LnDetailRequest)" doc:name="Invoke static" doc:id="6af00fb4-7617-453e-8d66-7d141f594aae" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="38325900-73dd-4f22-90be-8878e196702e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>	
+	
+		<flow name="paysalfact" doc:id="fdfc55b2-dea3-4cf3-a033-1fb99819ca1a" >
+		<http:listener doc:name="Listener" doc:id="4f6664c8-b79f-4ddd-9b38-5cf4ecf4798f" config-ref="HTTP_Listener_config" path="/api/customer/paysalfact" />
+		<logger level="INFO" doc:name="Logger" doc:id="a1b710d4-dd76-45e8-aae4-b1858bbb4e86" message="#[payload]" />
+		<java:new constructor="PaySalFactRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="99fa3963-dbde-4e5c-b351-a7875b85df92" class="dao.request.PaySalFactRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	branch : payload.branch,
+	period: payload.period,
+	fromDate : payload.fromDate,
+	cobDt : payload.cobDt
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getPaySalFact(PaySalFactRequest)" doc:name="Invoke static" doc:id="deed7269-b6b6-448c-81fd-9da2768cb911" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="45f4ef3e-21a4-4a05-806d-9c16121d7d60" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>	
+	
+	<flow name="limit_approved_bal" doc:id="d58f69cf-f43f-4850-bfa8-f2319eeac74f" >
+		<http:listener doc:name="Listener" doc:id="84260107-813a-405e-ba21-f03a594e1182" config-ref="HTTP_Listener_config" path="/api/customer/limitApprovedBal" />
+		<logger level="INFO" doc:name="Logger" doc:id="47c9535b-c760-43a8-9c35-16fc6a547075" message="#[payload]" />
+		<java:new constructor="LimitApprovedBalRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" doc:name="New" doc:id="f675d116-88da-4216-bddb-b6e58396fe74" class="dao.request.LimitApprovedBalRequest" target="request" >
+			<java:args ><![CDATA[#[{
+	requestId : payload.requestId,
+	cif : payload.cif,
+	period: payload.period,
+	fromDate : payload.fromDate,
+	cobDt : payload.cobDt
+	}]]]></java:args>
+		</java:new>  
+		<java:invoke-static method="getLimitApprovedBal(LimitApprovedBalRequest)" doc:name="Invoke static" doc:id="32cf7737-c2e7-49f3-ab22-e1fa5a2bacf9" class="service.CorpStatementService" >
+			<java:args ><![CDATA[#[{
+	request : vars.request
+}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="Transform Message" doc:id="63e67d13-9d45-48c1-9c34-623684ee6c42" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>			
+	
+	
+</mule>

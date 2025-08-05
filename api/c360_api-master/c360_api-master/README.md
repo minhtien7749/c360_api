@@ -15,9 +15,9 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ```
 cd existing_repo
-git remote add origin https://scm-dso.vietinbank.vn/TuanLA4/c360_api.git
+<!-- git remote add origin https://scm-dso.vietinbank.vn/TuanLA4/c360_api.git
 git branch -M master
-git push -uf origin master
+git push -uf origin master -->
 ```
 
 ## Integrate with your tools
